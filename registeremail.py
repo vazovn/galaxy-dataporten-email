@@ -1,8 +1,11 @@
 
 from flask import Flask, render_template, request, g, session, flash, redirect, url_for, abort
 from flask_mail import Mail
-from flask_openid import OpenID
+# from flask_openid import OpenID
+from flask.ext.oidc import OpenIDConnect
 from flask.ext.mail import Message
+
+from pkg_resources import resource_filename
 
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -15,11 +18,21 @@ app = Flask(__name__)
 app.config.update(
     DATABASE_URI = 'sqlite:///flask-openid.db',
     SECRET_KEY = 'dev key',
-    DEBUG = True
+    DEBUG = True,
 )
+app.config.update({
+    'OIDC_CLIENT_SECRETS': resource_filename(__name__, 'client_secrets.json'),
+    'SECRET_KEY': 'SomethingNotEntirelySecret',
+    'TESTING': True,
+    'DEBUG': True,
+    'OIDC_ID_TOKEN_COOKIE_SECURE': False,
+    'OIDC_REQUIRE_VERIFIED_EMAIL': False,
+    'OIDC_OPENID_REALM': 'http://localhost:5000/oidc_callback'
+})
 
 # setup flask-openid
-oid = OpenID(app, safe_roots=[])
+# oid = OpenID(app, safe_roots=[])
+oid = OpenIDConnect(app)
 
 # setup Mail
 
@@ -120,19 +133,24 @@ def after_request(response):
 def index():
     return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
-@oid.loginhandler
+@app.route('/login')
+@oid.require_login
 def login():
-    if g.user is not None:
-        return redirect(oid.get_next_url())
-    if request.method == 'POST':
-        openid = request.form.get('openid')
-        if openid:
-            return oid.try_login(openid, ask_for=['email'])
-    return render_template('login.html', next=oid.get_next_url(),
-                           error=oid.fetch_error())
+    info = oid.user_getinfo(['email', 'openid_id'])
+    return ('Hello, %s (%s)! <a href="/">Return</a>' %
+(info.get('email'), info.get('openid_id')))
+# def login():
+#     if g.user is not None:
+#         return redirect(oid.get_next_url())
+#     if request.method == 'POST':
+#         # openid = request.form.get('openid')
+#
+#         if openid:
+#             return oid.try_login(openid, ask_for=['email'])
+#     return render_template('login.html', next=oid.get_next_url(),
+# error=oid.fetch_error())
 
-@oid.after_login
+# @oid.after_login
 def create_or_login(resp):
     session['openid'] = resp.identity_url
     user = User.query.filter_by(openid=resp.identity_url).first()
