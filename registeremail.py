@@ -36,7 +36,7 @@ else:
     config.add_section('senders')
     config.set('senders', 'lifeportal', 'lifeportal-help@usit.uio.no')
     config.add_section('sendersname')
-    with open(sys.path[0] + 'config.cfg', 'wb') as configfile:
+    with open(sys.path[0] + '/config.cfg', 'wb') as configfile:
         config.write(configfile)
 
 if not config.get('dp', 'consumer_key'):
