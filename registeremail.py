@@ -1,11 +1,17 @@
 
-from flask import Flask, render_template, request, g, session, flash, redirect, url_for, abort
+from flask import Flask, render_template, request, g, session, flash, redirect, url_for, send_from_directory, render_template_string
 from flask_mail import Mail
-# from flask_openid import OpenID
-from flask.ext.oidc import OpenIDConnect
-from flask.ext.mail import Message
+from flask_mail import Message
 
-from pkg_resources import resource_filename
+from authomatic.providers import oauth2
+from authomatic.extras.flask import FlaskAuthomatic
+
+import ConfigParser
+
+import os.path
+import random
+import string
+import sys
 
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -13,26 +19,49 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from itsdangerous import URLSafeTimedSerializer
 
+def create_random_string(length=10):
+    return "".join(random.choice(string.lowercase) for i in range(length))
+
+config = ConfigParser.ConfigParser()
+if os.path.isfile(sys.path[0] + '/config.cfg'):
+    config.read(sys.path[0] + '/config.cfg')
+else:
+    config.add_section('dp')
+    config.set('dp', 'consumer_key', '')
+    config.set('dp', 'consumer_secret', '')
+    config.add_section('secrets')
+    config.set('secrets', 'app_secret_key', create_random_string())
+    config.set('secrets', 'ser_secret_key', create_random_string())
+    config.set('secrets', 'salt', create_random_string())
+    config.add_section('senders')
+    config.set('senders', 'lifeportal', 'lifeportal-help@usit.uio.no')
+    config.add_section('sendersname')
+    with open(sys.path[0] + 'config.cfg', 'wb') as configfile:
+        config.write(configfile)
+
+if not config.get('dp', 'consumer_key'):
+    raise ValueError("Please fill in config.cfg")
+
 # setup flask
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.config.update(
     DATABASE_URI = 'sqlite:///flask-openid.db',
-    SECRET_KEY = 'dev key',
+    SECRET_KEY = config.get('secrets', 'app_secret_key'),
     DEBUG = True,
 )
-app.config.update({
-    'OIDC_CLIENT_SECRETS': resource_filename(__name__, 'client_secrets.json'),
-    'SECRET_KEY': 'SomethingNotEntirelySecret',
-    'TESTING': True,
-    'DEBUG': True,
-    'OIDC_ID_TOKEN_COOKIE_SECURE': False,
-    'OIDC_REQUIRE_VERIFIED_EMAIL': False,
-    'OIDC_OPENID_REALM': 'http://localhost:5000/oidc_callback'
-})
 
-# setup flask-openid
-# oid = OpenID(app, safe_roots=[])
-oid = OpenIDConnect(app)
+
+dp = FlaskAuthomatic(
+    config={
+        'dp': {
+            'class_': oauth2.Dataporten,
+            'consumer_key': config.get('dp', 'consumer_key'),
+            'consumer_secret': config.get('dp', 'consumer_secret')
+        }
+    },
+    secret=app.config['SECRET_KEY'],
+    debug=True,
+)
 
 # setup Mail
 
@@ -56,73 +85,98 @@ class User(Base):
     email = Column(String(200))
     email_confirmed = Column(Boolean)
     conf_token = Column(String(200))
-    salt = Column(String(200))
+    # salt = Column(String(200))
     openid = Column(String(200))
 
     def __init__(self, id_url, email, openid):
         self.id_url = id_url
         self.email = email
-        self.salt = create_salt()
-        self.conf_token = gen_conf_token(self.email, self.salt)
-        self.email_confirmed = 'N'
+        # self.salt = create_random_string()
+        self.conf_token = create_random_string()
+        self.email_confirmed = False
         self.openid = openid
-
-def create_salt():
-    return "saltesalte"
 
 def secret_key():
     return "secret key"
 
-def gen_conf_token(email, salt):
-    serializer = URLSafeTimedSerializer(secret_key())
-    return serializer.dumps(email, salt=salt)
+def gen_conf_token(conf_string):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(conf_string, salt=config.get('secrets', 'salt'))
 
 def read_conf_token(token, expiration=3600):
-    serializer = URLSafeTimedSerializer(secret_key())
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
     try:
-        email = serializer.loads(
+        conf_token = serializer.loads(
             token,
-            salt=app.config['SECURITY_PASSWORD_SALT'],
+            salt=config.get('secrets', 'salt'),
             max_age=expiration
         )
     except:
         return False
-    return email
+    print "Conf token", conf_token
+    print "token", token
+    return conf_token
 
 @app.route('/confirm/<token>')
 def confirm_email(token):
-    try:
-        email = read_conf_token(token)
-    except:
-        flash('The confirmation link is invalid or has expired.', 'danger')
-    user = User.query.filter_by(email=email).first_or_404()
+    print "token:", token
+    conf_token = read_conf_token(token)
+    print conf_token
+    print token
+    user = User.query.filter_by(conf_token=conf_token).first()
+    print user.email
+    print user
     if user.email_confirmed:
         flash('Already confirmed.', 'success')
     else:
         user.email_confirmed = True
         db_session.add(user)
         db_session.commit()
-        flash('You have confirmed your email.', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('confirmed'))
 
 def get_bodytext(conf_token):
-    return "Foo bar baz\n\n{}\n\nbaz bar foo".format("ting")
+    email_file = sys.path[0] + "/email-template.txt"
+    if request.args.get('service') == 'lifeportal':
+        email_file = sys.path[0] + "/email-lifeportal.txt"
+    with open (email_file) as f:
+        bodytext = f.read()
+    bodytext = render_template_string(bodytext,
+                                      url=config.get('general', 'url'),
+                                      token=gen_conf_token(conf_token))
+    return bodytext
+
+def get_sender():
+    """
+    :return: tuple if both sender and sender name is set, else string
+    """
+    email = config.get('senders',
+                       request.args.get('service') or "default")
+    name = None
+    if config.has_option('sendersname',
+                       request.args.get('service') or "default"):
+        name = config.get('sendersname',
+                          request.args.get('service') or "default")
+    if name:
+        return name, email
+    return email
 
 def send_email(to, subject, body):
     msg = Message(
         subject,
         recipients=[to],
         body=body,
-        sender="tt@ulrik.uio.no"
+        sender=config.get('senders',
+               request.args.get('service') or "default")
     )
     mail.send(msg)
 
 @app.before_request
 def lookup_current_user():
     g.user = None
-    if 'openid' in session:
-        openid = session['openid']
-        g.user = User.query.filter_by(openid=openid).first()
+    if 'dp' in session:
+        dp = session['dp']
+        g.user = dp.result.user
+        # g.user = User.query.filter_by(openid=dp.result).first()
 
 @app.after_request
 def after_request(response):
@@ -131,42 +185,36 @@ def after_request(response):
 
 @app.route('/')
 def index():
+    # print "Service:", request.args.get('service')
     return render_template('index.html')
 
 @app.route('/login')
-@oid.require_login
+@dp.login('dp')
 def login():
-    info = oid.user_getinfo(['email', 'openid_id'])
-    return ('Hello, %s (%s)! <a href="/">Return</a>' %
-(info.get('email'), info.get('openid_id')))
-# def login():
-#     if g.user is not None:
-#         return redirect(oid.get_next_url())
-#     if request.method == 'POST':
-#         # openid = request.form.get('openid')
-#
-#         if openid:
-#             return oid.try_login(openid, ask_for=['email'])
-#     return render_template('login.html', next=oid.get_next_url(),
-# error=oid.fetch_error())
+    if dp.result:
+        if dp.result.error:
+            return dp.result.error.message
+        elif dp.result.user:
+            if not (dp.result.user.name and dp.result.user.id):
+                dp.result.user.update()
+            print "Redirects to: {}".format(request.args.get("next"))
+            return redirect(url_for('create_profile'))
+            # return jsonify(name=dp.result.user.name, id=dp.result.user.id)
+    else:
+        return dp.response
 
-# @oid.after_login
-def create_or_login(resp):
-    session['openid'] = resp.identity_url
-    user = User.query.filter_by(openid=resp.identity_url).first()
-    if user is not None:
-        flash(u'Successfully signed in')
-        g.user = user
-        return redirect(oid.get_next_url())
-    print "====="
-    print resp.identity_url
-    return redirect(url_for('create_profile', next=oid.get_next_url(),
-                            id_url=resp.identity_url,
-                            email=resp.email))
+@app.route('/email-sent')
+def email_sent():
+    return render_template('email-sent.html')
+
+@app.route('/confirmed')
+def confirmed():
+    return render_template('confirmed.html')
 
 @app.route('/create-profile', methods=['GET', 'POST'])
 def create_profile():
-    if g.user is not None or 'openid' not in session:
+    print u"Create profile for {}".format(dp.result.user.name)
+    if not dp.result.user: # or 'openid' not in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
         id_url = request.form['id_url']
@@ -177,22 +225,23 @@ def create_profile():
             flash(u'No OpenID identity url')
         else:
             flash(u'Registered')
-            user = User(id_url, email, session['openid'])
+            user = User(id_url, email, dp.result.user.id)
             db_session.add(user)
             db_session.commit()
-            send_email(user.email, "foobar", get_bodytext(user.conf_token))
-            return redirect(oid.get_next_url())
-    return  render_template('create_profile.html', next_url=oid.get_next_url())
+            send_email(user.email,
+                       config.get('general', 'email_subject'),
+                       get_bodytext(user.conf_token))
+            print "E-post sent"
+            return redirect(url_for('email_sent'))
+    return render_template('create_profile.html')
 
 @app.route('/edit-profile', methods=['GET', 'POST'])
 def edit_profile():
     return render_template('edit_profile.html', form=None)
 
-@app.route('/logout')
-def logout():
-    session.pop('openid', None)
-    flash(u'You have been logged out')
-    return redirect(oid.get_next_url())
+@app.route('/<path:filename>')
+def send_css(filename):
+    return send_from_directory('static', filename)
 
 if __name__ == '__main__':
     init_db()

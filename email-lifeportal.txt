@@ -1,0 +1,7 @@
+Please confirm your email address by clicking on this link:
+
+{{ url }}{{ token }}
+
+Regards,
+Research Support Services Group
+University of Oslo
