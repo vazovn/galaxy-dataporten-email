@@ -33,6 +33,8 @@ else:
     config.set('secrets', 'app_secret_key', create_random_string())
     config.set('secrets', 'ser_secret_key', create_random_string())
     config.set('secrets', 'salt', create_random_string())
+    config.add_section('db')
+    config.set('db', 'uri', '')
     config.add_section('senders')
     config.set('senders', 'lifeportal', 'lifeportal-help@usit.uio.no')
     config.add_section('sendersname')
@@ -45,7 +47,8 @@ if not config.get('dp', 'consumer_key'):
 # setup flask
 app = Flask(__name__, static_url_path='/static')
 app.config.update(
-    DATABASE_URI = 'sqlite:///flask-openid.db',
+    DATABASE_URI = config.get('db', 'uri'),
+    # '''sqlite:///flask-openid.db',
     SECRET_KEY = config.get('secrets', 'app_secret_key'),
     DEBUG = True,
 )
@@ -79,7 +82,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 class User(Base):
-    __tablename__ = 'usersnew3'
+    __tablename__ = 'usersnew'
     id = Column(Integer, primary_key=True)
     id_url = Column(String(200))
     email = Column(String(200))
