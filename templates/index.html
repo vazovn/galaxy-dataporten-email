@@ -2,7 +2,7 @@
 {% block body %}
     <h2>We did not receive your email</h2>
     <p>
-        We did not receive an email address from your ID provider. <a href="{{ url_for('login') }}">Log in</a> and register your email, to enable access to {{ request.args.get('service') or "the portal" }}.
+        We did not receive an email address from your ID provider. In order to use {{ request.args.get('service') or "the portal" }}, you must provide us with an email. Please <a href="{{ url_for('login') }}">log in</a> and register your email.
         <ul><li><a href="{{ url_for('login') }}">Log in</a></li></ul>
     </p>
 {% endblock %}
