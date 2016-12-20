@@ -84,15 +84,15 @@ def init_db():
 class User(Base):
     __tablename__ = 'usersnew'
     id = Column(Integer, primary_key=True)
-    id_url = Column(String(200))
+    name = Column(String(200))
     email = Column(String(200))
     email_confirmed = Column(Boolean)
     conf_token = Column(String(200))
     # salt = Column(String(200))
-    openid = Column(String(200))
+    openid = Column(String(200), index=True, unique=True)
 
-    def __init__(self, id_url, email, openid):
-        self.id_url = id_url
+    def __init__(self, name, email, openid):
+        self.name = name
         self.email = email
         # self.salt = create_random_string()
         self.conf_token = create_random_string()
@@ -220,15 +220,15 @@ def create_profile():
     if not dp.result.user: # or 'openid' not in session:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        id_url = request.form['id_url']
+        name = request.form['name']
         email = request.form['email']
         if '@' not in email:
             flash(u'Error: Email is required')
-        elif not id_url:
+        elif not dp.result.user.id:
             flash(u'No OpenID identity url')
         else:
             flash(u'Registered')
-            user = User(id_url, email, dp.result.user.id)
+            user = User(name, email, dp.result.user.id)
             db_session.add(user)
             db_session.commit()
             send_email(user.email,
