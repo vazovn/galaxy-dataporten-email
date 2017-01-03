@@ -26,6 +26,11 @@ config = ConfigParser.ConfigParser()
 if os.path.isfile(sys.path[0] + '/config.cfg'):
     config.read(sys.path[0] + '/config.cfg')
 else:
+    print "No config file found. Creating new"
+    db_host = raw_input('Database host:')
+    db_name = raw_input('Database name:')
+    db_user = raw_input('Database user:')
+    db_pass = raw_input('Database pass:')
     config.add_section('dp')
     config.set('dp', 'consumer_key', '')
     config.set('dp', 'consumer_secret', '')
@@ -34,7 +39,11 @@ else:
     config.set('secrets', 'ser_secret_key', create_random_string())
     config.set('secrets', 'salt', create_random_string())
     config.add_section('db')
-    config.set('db', 'uri', '')
+    config.set('db', 'uri', 'postgresql://' + db_user
+               + ':' + db_pass
+               + '@' + db_host
+               + '/' + db_name)
+    config.set('db', 'table_name', 'users')
     config.add_section('senders')
     config.set('senders', 'lifeportal', 'lifeportal-help@usit.uio.no')
     config.add_section('sendersname')
@@ -82,7 +91,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 class User(Base):
-    __tablename__ = 'usersnew'
+    __tablename__ = config.get('db', 'table_name')
     id = Column(Integer, primary_key=True)
     name = Column(String(200))
     email = Column(String(200))
@@ -125,6 +134,8 @@ def confirm_email(token):
     print "token:", token
     conf_token = read_conf_token(token)
     print conf_token
+    if not conf_token:
+        return None
     print token
     user = User.query.filter_by(conf_token=conf_token).first()
     print user.email
