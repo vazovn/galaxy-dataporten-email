@@ -142,9 +142,11 @@ def confirm_email(token):
         return None
     print token
     user = User.query.filter_by(conf_token=conf_token).first()
-    print user.email
-    print user
-    if user.email_confirmed:
+    # print user.email
+    # print user
+    if not user:
+        flash(u'User not found')
+    elif user.email_confirmed:
         flash('Already confirmed.', 'success')
     else:
         user.email_confirmed = True
