@@ -257,6 +257,7 @@ def create_profile():
             tmp = find_user(dp.result.user.id)
             if tmp:
                 db_session.delete(tmp)
+                db_session.commit()
             db_session.add(user)
             db_session.commit()
             send_email(user.email,
