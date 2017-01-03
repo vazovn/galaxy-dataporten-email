@@ -13,7 +13,7 @@ import random
 import string
 import sys
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, delete
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -27,10 +27,13 @@ if os.path.isfile(sys.path[0] + '/config.cfg'):
     config.read(sys.path[0] + '/config.cfg')
 else:
     print "No config file found. Creating new"
-    db_host = raw_input('Database host:')
-    db_name = raw_input('Database name:')
-    db_user = raw_input('Database user:')
-    db_pass = raw_input('Database pass:')
+    db_host = raw_input('Database host: ')
+    db_name = raw_input('Database name: ')
+    db_user = raw_input('Database user: ')
+    db_pass = raw_input('Database pass: ')
+    config.add_section('general')
+    config.set('general', 'email_subject', 'Please confirm your email address')
+    config.set('general', 'url', '')
     config.add_section('dp')
     config.set('dp', 'consumer_key', '')
     config.set('dp', 'consumer_secret', '')
@@ -45,6 +48,7 @@ else:
                + '/' + db_name)
     config.set('db', 'table_name', 'users')
     config.add_section('senders')
+    config.set('senders', 'default', 'lifeportal-help@usit.uio.no')
     config.set('senders', 'lifeportal', 'lifeportal-help@usit.uio.no')
     config.add_section('sendersname')
     with open(sys.path[0] + '/config.cfg', 'wb') as configfile:
@@ -225,6 +229,16 @@ def email_sent():
 def confirmed():
     return render_template('confirmed.html')
 
+def find_user(dpid):
+    """
+    Queries the database for a dataporten user
+
+    :param dpid: string containing dataporten id.
+    :return: user object (table row from database)
+    """
+    user = db_session.query(User).filter_by(openid=dpid).first()
+    return user
+
 @app.route('/create-profile', methods=['GET', 'POST'])
 def create_profile():
     print u"Create profile for {}".format(dp.result.user.name)
@@ -240,6 +254,9 @@ def create_profile():
         else:
             flash(u'Registered')
             user = User(name, email, dp.result.user.id)
+            tmp = find_user(dp.result.user.id)
+            if tmp:
+                db_session.delete(tmp)
             db_session.add(user)
             db_session.commit()
             send_email(user.email,
