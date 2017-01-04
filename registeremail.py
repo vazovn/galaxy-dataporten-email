@@ -185,13 +185,24 @@ def get_sender():
         return name, email
     return email
 
+def get_service():
+    try:
+        messages = json.loads(session['messages'])
+        service = messages.get('service', None)
+    except:
+        service = None
+    print "Service: ", service, type(service)
+    return service
+
 def send_email(to, subject, body):
     msg = Message(
         subject,
         recipients=[to],
         body=body,
         sender=config.get('senders',
-               request.args.get('service') or "default")
+               request.args.get('service') or
+                          get_service() or
+                          "default")
     )
     mail.send(msg)
 
@@ -238,12 +249,7 @@ def email_sent():
 
 @app.route('/confirmed')
 def confirmed():
-    try:
-        messages = json.loads(session['messages'])
-        service = messages.get('service', "")
-    except:
-        service = None
-    print "Service: ", service, type(service)
+    service = get_service()
     return render_template('confirmed.html', service=service)
 
 def find_user(dpid):
@@ -270,8 +276,7 @@ def create_profile():
             flash(u'No OpenID identity url')
         else:
             flash(u'Registered')
-            messages = json.loads(session.get('messages', {}))
-            service = messages.get('service', "")
+            service = get_service()
             user = User(name, email, dp.result.user.id, service=service)
             tmp = find_user(dp.result.user.id)
             if tmp:
