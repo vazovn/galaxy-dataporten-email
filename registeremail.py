@@ -1,4 +1,20 @@
-import json
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2016-2017 University of Oslo, Norway
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# Cerebrum is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licences/>.
+
 
 from flask import Flask, render_template, request, g, session, flash, redirect, url_for, send_from_directory, render_template_string
 from flask_mail import Mail
@@ -8,7 +24,7 @@ from authomatic.providers import oauth2
 from authomatic.extras.flask import FlaskAuthomatic
 
 import ConfigParser
-
+import json
 import os.path
 import random
 import string
