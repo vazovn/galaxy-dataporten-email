@@ -1,20 +1,18 @@
 {% extends "layout.html" %}
-{% block title %}Create Profile{% endblock %}
+{% block title %}Register email{% endblock %}
 {% block body %}
   <h2>Please enter your email address</h2>
   <p>
   <form action="" method=post>
     <dl>
       <dt>Name:
-      <dd><input type=text name=id_url size=30 value="{{ request.values.id_url }}">
-      <dt>E-Mail:
+      <dd><input type=text name=name size=30 value="{{ request.values.name }}">
+      <dt>EMail:
       <dd><input type=text name=email size=30 value="{{ request.values.email }}">
     </dl>
     <p>
-      <input type=submit value="Create profile">
+      <input type=submit value="Register email">
       <input type=hidden name=next value="{{ next }}">
   </form>
   <p>
-    If you don't want to proceed, you can <a href="{{ url_for('logout')
-    }}">sign out</a> again.
 {% endblock %}

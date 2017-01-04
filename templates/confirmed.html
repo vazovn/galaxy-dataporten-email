@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block body %}
+    <h2>Confirmed</h2>
+    <p>
+    Thank you for confirming your email address. Please log in.
+    </p>
+    {% if service == "lifeportal" %}
+    <ul>
+        <li><a href="http://lifeportal.uio.no/">Lifeportal</a></li>
+    </ul>
+    {% endif %}
+    {% if service == "geoaccessno" %}
+        <ul>
+            <li><a href="http://geoaccessno-u01.hpc.uio.no/">Geoaccessno</a></li>
+        </ul>
+    {% endif %}
+{% endblock %}

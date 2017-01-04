@@ -1,18 +1,116 @@
-<!doctype html>
-<title>{% block title %}Welcome{% endblock %} | USIT's Galaxy portals</title>
-<link rel=stylesheet type=text/css href="{{ url_for('static',
-  filename='style.css') }}">
-<h1>USIT's Galaxy portals</h1>
-<ul class=navigation>
-  <li><a href="{{ url_for('index') }}">overview</a>
-  {% if g.user %}
-  <li><a href="{{ url_for('edit_profile') }}">profile</a>
-  <li><a href="{{ url_for('logout') }}">sign out [{{ g.user.name }}]</a>
-  {% else %}
-  <li><a href="{{ url_for('login') }}">sign in</a>
-  {% endif %}
-</ul>
-{% for message in get_flashed_messages() %}
-  <p class=message>{{ message }}
-{% endfor %}
-{% block body %}{% endblock %}
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+    <title>{% block title %}Welcome{% endblock %} | USIT's Galaxy portals</title>
+
+    <link href="uio-app-top-bottom.css" type="text/css" rel="stylesheet" media="screen, print" />
+    <link href="uio-app-top-bottom-responsive.css" type="text/css" rel="stylesheet" media="screen and (max-width: 15.5cm) and (orientation : portrait),
+                                                                                         screen and (max-width: 17.5cm) and (orientation : landscape)"/>
+    <link href="uio-app-print.css" type="text/css" rel="stylesheet" media="print" />
+</head>
+<body class="app-fluid-responsive">
+
+<!-- Page header starts -->
+<div id="app-head-wrapper">
+    <div id="line-top">
+        <div id="uiologo">
+            <a href="http://www.uio.no/">Universitetet i Oslo</a>
+        </div>
+    </div>
+    <div id="app-head">
+        <div id="app-name">
+            <a href="/">USIT's Galaxy portals</a>
+            <span id="tagline">Email registration</span>
+        </div>
+        <div id="head-menu">
+            &nbsp;
+        </div>
+        <a href="#" id="responsive-menu">Menu</a>
+        <div id="head-login">
+            <ul>
+                <li id="user-fullname">
+                    {% if g.user %}
+                        <span id="head-login-user-fullname">{% print g.user.name %}</span>
+                    {% endif %}
+                </li>
+                <!-- <li id="login-out-link"><a id="head-login-logout" href="/">Logg ut</a></li>-->
+            </ul>
+        </div>
+    </div>
+</div>
+<!-- Page header end -->
+
+<!-- Page content starts -->
+<div id="app-content">
+    <p class=message>{{ message }}</p>{% block body %}{% endblock %}
+    &nbsp;
+</div>
+<!-- Page content end -->
+
+<!-- Page footer starts -->
+<div id="app-footer-wrapper">
+    <div id="app-footer">
+        <div id="contact-info">
+            <div class="phone-fax-email">
+                <span class="vrtx-label">Contact information</span>
+                <span class="email">E-mail: uav-itf-ft@usit.uio.no</span>
+                <span class="tel">Phone: 99 99 99 99</span>
+            </div>
+        </div>
+        <div id="app-responsible">
+            <span class="vrtx-label">Responsible for this service</span>
+            <span><a href="http://www.usit.uio.no/english/about/organisation/bps/rc/rss/">Research Support Services Group</a></span>
+            <span>USIT</span>
+        </div>
+    </div>
+</div>
+<!-- Page footer end -->
+
+{#  <!-- privacy policy footer starts -->
+The service keeps the cookie only until the end of the session.
+<div id="privacy-policy-footer" class="info-link-wrapper">
+    <div class="info-link">
+        TODO
+        <a class="policy-text" href="#">TODO</a>
+        <a id="footer-info-link-close" class="info-link-close" href="javascript:void(0)">close</a>
+    </div>
+</div>
+<!-- privacy policy footer ends -->
+#}
+
+<!-- UiO app JavaScript -->
+<script type="text/javascript" src="responsive-libs.js"></script>
+<script type="text/javascript" src="uio-app-responsive.js"></script>
+<script type="text/javascript" src="uio-app.js"></script>
+<script type="text/javascript"><!--
+(function () {
+    var languageMenu = uioApp.getElementsByClass('language-menu')[0],
+            loginMenu = document.getElementById('head-login'),
+            hasLoginMenuMultipleLinks = loginMenu.getElementsByTagName("li").length > 2,
+            responsiveMenu = document.getElementById('responsive-menu');
+    if(responsiveUiOApp.isResponsive) {
+        enquire.register(responsiveUiOApp.responsiveMax, {
+            match: function() {
+                languageMenu.style.display = 'none';
+                if(hasLoginMenuMultipleLinks) {
+                    loginMenu.style.display = 'none';
+                    responsiveMenu.style.display = 'block';
+                }
+            },
+            unmatch: function() {
+                languageMenu.style.display = 'block';
+                if(hasLoginMenuMultipleLinks) {
+                    loginMenu.style.display = 'block';
+                    responsiveMenu.style.display = 'none';
+                }
+            }
+        });
+    }
+}());
+//-->
+</script>
+</body>
+</html>
