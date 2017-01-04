@@ -115,7 +115,7 @@ class User(Base):
         if service:
             self.service = service
         else:
-            self.service = ""
+            self.service = "none"
 
 def secret_key():
     return "secret key"
@@ -211,6 +211,10 @@ def after_request(response):
 @app.route('/')
 def index():
     # print "Service:", request.args.get('service')
+    print "Service {}".format(request.args.get("service"))
+    messages = json.dumps({"service": request.args.get("service") or 'none'})
+    session['messages'] = messages
+    print "session", session
     return render_template('index.html')
 
 @app.route('/login')
@@ -222,9 +226,7 @@ def login():
         elif dp.result.user:
             if not (dp.result.user.name and dp.result.user.id):
                 dp.result.user.update()
-            print "Redirects to: {}".format(request.args.get("next"))
-            messages = json.dumps({"service": request.args.get("service") or ""})
-            session['messages'] = messages
+            # print "dp.result.user", dp.result.user.name, dp.result.user.id
             return redirect(url_for('create_profile'))
             # return jsonify(name=dp.result.user.name, id=dp.result.user.id)
     else:
@@ -236,7 +238,13 @@ def email_sent():
 
 @app.route('/confirmed')
 def confirmed():
-    return render_template('confirmed.html')
+    try:
+        messages = json.loads(session['messages'])
+        service = messages.get('service', "")
+    except:
+        service = None
+    print "Service: ", service, type(service)
+    return render_template('confirmed.html', service=service)
 
 def find_user(dpid):
     """
@@ -262,9 +270,9 @@ def create_profile():
             flash(u'No OpenID identity url')
         else:
             flash(u'Registered')
-            messages = session['messages']
-            print messages['service']
-            user = User(name, email, dp.result.user.id, service=messages['service'])
+            messages = json.loads(session.get('messages', {}))
+            service = messages.get('service', "")
+            user = User(name, email, dp.result.user.id, service=service)
             tmp = find_user(dp.result.user.id)
             if tmp:
                 db_session.delete(tmp)
