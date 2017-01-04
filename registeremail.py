@@ -1,3 +1,4 @@
+import json
 
 from flask import Flask, render_template, request, g, session, flash, redirect, url_for, send_from_directory, render_template_string
 from flask_mail import Mail
@@ -101,16 +102,20 @@ class User(Base):
     email = Column(String(200))
     email_confirmed = Column(Boolean)
     conf_token = Column(String(200))
-    # salt = Column(String(200))
+    service = Column(String(200))
     openid = Column(String(200), index=True, unique=True)
 
-    def __init__(self, name, email, openid):
+    def __init__(self, name, email, openid, service=None):
         self.name = name
         self.email = email
         # self.salt = create_random_string()
         self.conf_token = create_random_string()
         self.email_confirmed = False
         self.openid = openid
+        if service:
+            self.service = service
+        else:
+            self.service = ""
 
 def secret_key():
     return "secret key"
@@ -218,6 +223,8 @@ def login():
             if not (dp.result.user.name and dp.result.user.id):
                 dp.result.user.update()
             print "Redirects to: {}".format(request.args.get("next"))
+            messages = json.dumps({"service": request.args.get("service") or ""})
+            session['messages'] = messages
             return redirect(url_for('create_profile'))
             # return jsonify(name=dp.result.user.name, id=dp.result.user.id)
     else:
@@ -255,7 +262,9 @@ def create_profile():
             flash(u'No OpenID identity url')
         else:
             flash(u'Registered')
-            user = User(name, email, dp.result.user.id)
+            messages = session['messages']
+            print messages['service']
+            user = User(name, email, dp.result.user.id, service=messages['service'])
             tmp = find_user(dp.result.user.id)
             if tmp:
                 db_session.delete(tmp)
